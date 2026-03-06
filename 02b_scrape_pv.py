@@ -129,6 +129,16 @@ async def parse_pv_rows(page, procedure_name):
                 if len(cells) < 6:
                     continue
 
+                # Date publication — cells[1] comme dans le crawler principal
+                date_pub = ""
+                try:
+                    cell1_text = await cells[1].inner_text()
+                    m = re.search(r'\d{2}/\d{2}/\d{4}', cell1_text)
+                    if m:
+                        date_pub = m.group(0)
+                except Exception:
+                    pass
+
                 # Référence
                 ref_el = cells[2].locator("span.ref").first
                 reference = ""
@@ -154,12 +164,12 @@ async def parse_pv_rows(page, procedure_name):
 
                 if reference:
                     results.append({
-                        "reference":  reference,
-                        "objet":      objet,
-                        "lien":       lien,
-                        "procedure":  procedure_name,
-                        "pv_pdf_url": "",
-                        "date_publication": "",  # Rempli plus tard dans enrich_pv_pdf
+                        "reference":        reference,
+                        "objet":            objet,
+                        "lien":             lien,
+                        "procedure":        procedure_name,
+                        "pv_pdf_url":       "",
+                        "date_publication": date_pub,
                     })
             except Exception as e:
                 log.debug(f"Ligne PV ignorée : {e}")
@@ -232,6 +242,14 @@ def save_pv(tender_id, reference, pdf_url, procedure_type, date_pub=""):
         ).fetchone()
         
         if existing:
+            # Mettre à jour la date si elle était vide
+            if date_pub:
+                c.execute(
+                    """UPDATE pvs SET date_publication=?
+                       WHERE id=? AND (date_publication IS NULL OR date_publication='')""",
+                    (date_pub, existing["id"])
+                )
+                conn.commit()
             log.debug(f"PV déjà en base (hash match) : {reference}")
             conn.close()
             return False
