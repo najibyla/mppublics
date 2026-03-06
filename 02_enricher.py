@@ -264,14 +264,18 @@ def update_tender(tender_pk: int, reference: str, date_publication: str, data: d
     try:
         c.execute(
             """UPDATE tenders SET
-                objet=?, acheteur=?, estimation=?, domaines=?,
+                objet=CASE WHEN ? != '' THEN ? ELSE objet END,
+                acheteur=CASE WHEN ? != '' THEN ? ELSE acheteur END,
+                estimation=?, domaines=?,
                 contact_nom=?, contact_email=?, contact_tel=?, contact_fax=?,
                 lien_dce=?, attributaire=?, montant_reel=?,
                 date_attribution=?, nb_soumissionnaires=?,
                 hash_content=?, tender_hash=?, status=?
                WHERE id=?""",
             (
-                data["objet"], data["acheteur"], data["estimation"], data["domaines"],
+                data["objet"], data["objet"],
+                data["acheteur"], data["acheteur"],
+                data["estimation"], data["domaines"],
                 data["contact_nom"], data["contact_email"], data["contact_tel"],
                 data["contact_fax"], data["lien_dce"],
                 data["attributaire"], data["montant_reel"], data["date_attribution"],
