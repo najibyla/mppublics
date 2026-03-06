@@ -420,13 +420,20 @@ async def run():
             while True:
                 try:
                     log.info(f"--- Page {page_num} ---")
-                    # Attendre que la page soit stable avant page.content()
-                    # (évite "Unable to retrieve content because the page is navigating")
-                    try:
-                        await page.wait_for_load_state("networkidle", timeout=20000)
-                    except Exception:
-                        pass
-                    page_content = await page.content()
+                    # Attendre que la page soit complètement stable (retry si navigation en cours)
+                    page_content = None
+                    for _attempt in range(5):
+                        try:
+                            await page.wait_for_load_state("networkidle", timeout=25000)
+                            await asyncio.sleep(1)
+                            page_content = await page.content()
+                            break
+                        except Exception as _e:
+                            log.warning(f"page.content() tentative {_attempt+1}/5 : {_e}")
+                            await asyncio.sleep(2)
+                    if not page_content:
+                        log.error("Impossible de récupérer le contenu de la page après 5 tentatives")
+                        break
                     page_hash = compute_hash(page_content)
                     rows = await parse_rows(page)
                     total_seen += len(rows)
