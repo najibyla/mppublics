@@ -290,60 +290,12 @@ async def run():
         notify_critical("03_downloader", e, "Erreur fatale pipeline downloader")
         raise
 
-    # ── Téléchargement PDFs PVs ───────────────────────────────────────────────
-    pending_pvs = get_pending_pvs(limit=100)
-    log.info(f"{len(pending_pvs)} PDFs PVs à télécharger.")
-    pv_ok = pv_errors = 0
-
-    if pending_pvs:
-        os.makedirs("downloads/pvs", exist_ok=True)
-        # Réutiliser les cookies de la session Playwright si dispo, sinon session simple
-        try:
-            async with async_playwright() as p2:
-                browser2 = await p2.chromium.launch(
-                    headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
-                )
-                context2 = await browser2.new_context()
-                page2 = await context2.new_page()
-
-                for row in pending_pvs:
-                    pv_pk  = row["id"]
-                    ref    = row["reference"]
-                    url    = row["pdf_url"]
-                    try:
-                        # Obtenir les cookies via Playwright, télécharger via requests
-                        await page2.goto(url, wait_until="domcontentloaded", timeout=15000)
-                        cookies = await context2.cookies()
-                        cookie_str = "; ".join(f"{c['name']}={c['value']}" for c in cookies)
-
-                        safe_ref = re.sub(r'[^\w\-]', '_', ref)[:40]
-                        filename = f"downloads/pvs/{pv_pk}_{safe_ref}.pdf"
-                        path = download_with_requests(url, cookie_str, filename)
-                        if path:
-                            update_pv_path(pv_pk, path)
-                            log.info(f"[PV {ref}] ✅ {path}")
-                            pv_ok += 1
-                        else:
-                            log.warning(f"[PV {ref}] Téléchargement échoué")
-                            pv_errors += 1
-                    except Exception as e:
-                        log.error(f"[PV {ref}] Erreur : {e}")
-                        pv_errors += 1
-                    await asyncio.sleep(1.5)
-
-                await browser2.close()
-        except Exception as e:
-            log.error(f"Erreur téléchargement PVs : {e}")
-            notify_error("03_downloader", e, "Erreur téléchargement PDFs PVs")
-
     notify_success("03_downloader", {
-        "Traités":      ok + errors,
-        "OK":           ok,
-        "Erreurs":      errors,
-        "PVs téléchargés": pv_ok,
-        "PVs erreurs":  pv_errors,
+        "Traités": ok + errors,
+        "OK":      ok,
+        "Erreurs": errors,
     })
-    log.info(f"=== Fin DCE : {ok} OK | {errors} erreurs | PVs : {pv_ok} OK | {pv_errors} erreurs ===")
+    log.info(f"=== Fin : {ok} OK | {errors} erreurs ===")
 
 if __name__ == "__main__":
     asyncio.run(run())
