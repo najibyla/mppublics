@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+*.egg-info/
+
+# Données sensibles
+.env
+token.json
+credentials.json
+
+# Base de données locale
+tenders.db
+tenders.db-wal
+tenders.db-shm
+
+# Fichiers générés par le pipeline
+downloads/
+summaries/
+temp_extract/
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Dossiers anciens
+v7/
+old/
+*.zip

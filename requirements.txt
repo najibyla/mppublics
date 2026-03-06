@@ -1,0 +1,35 @@
+# ============================================================
+# requirements.txt - Pipeline ETL Marchés Publics v2
+# Python 3.10+
+# ============================================================
+
+# --- Scraping ---
+playwright==1.43.0
+fake-useragent==1.5.1             # Rotation User-Agent aléatoire (anti-WAF)
+requests==2.31.0                  # Notifications Telegram
+
+# --- PDF ---
+PyMuPDF==1.24.1
+pytesseract==0.3.10
+Pillow==10.3.0
+
+# --- NLP / extraction intelligente ---
+pdfplumber==0.11.0                # Extraction tableaux PDF (niveau 2)
+ollama==0.2.1                     # Client Ollama local (niveau 4 — nécessite ollama installé)
+sumy==0.11.0                      # Résumé extractif fallback
+nltk==3.8.1
+
+# --- Archives ---
+patool==1.12
+
+# --- Google APIs ---
+google-api-python-client==2.125.0
+google-auth==2.29.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0
+gspread==6.1.2                    # Client Google Sheets simple (utilisé par 05_sync.py)
+
+# --- Utilitaires ---
+python-dotenv==1.0.1
+regex==2024.4.16
+python-dateutil==2.9.0
