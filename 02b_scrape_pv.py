@@ -179,14 +179,54 @@ async def parse_pv_rows(page, procedure_name):
     return results
 
 
+def pv_already_known(url_id: str, reference: str) -> bool:
+    """Vérifie si un PV existe déjà en base pour ce tender (par url_id ou reference).
+    
+    Permet de skipper la visite de la page détail si le PV est déjà connu.
+    Note : si un nouveau PV est publié pour un tender existant, il sera quand même
+    détecté car save_pv() vérifie par hash_pdf (URL unique par PV).
+    """
+    conn = None
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        if url_id:
+            row = c.execute(
+                "SELECT p.id FROM pvs p JOIN tenders t ON p.tender_id=t.id WHERE t.url_id=? LIMIT 1",
+                (url_id,)
+            ).fetchone()
+            if row:
+                return True
+        # Fallback sur reference
+        row = c.execute(
+            "SELECT id FROM pvs WHERE reference=? LIMIT 1", (reference,)
+        ).fetchone()
+        return row is not None
+    except Exception:
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
 async def enrich_pv_pdf(page, items):
     """
     Pour chaque PV, va sur la page détail récupérer le lien PDF.
     Sélecteur validé v5 : a[href*='EntrepriseDownloadAvis']
     """
     enriched = []
+    skipped = 0
     for i, item in enumerate(items):
-        log.info(f"  PDF [{i+1}/{len(items)}] {item['reference']}")
+        uid = extract_url_id(item.get("lien", ""))
+        ref = item["reference"]
+
+        # Skip si PV déjà connu en base — évite de revisiter la page détail inutilement
+        if pv_already_known(uid, ref):
+            log.debug(f"  PDF [{i+1}/{len(items)}] {ref} — déjà en base, skip")
+            skipped += 1
+            continue
+
+        log.info(f"  PDF [{i+1}/{len(items)}] {ref}")
         try:
             await page.goto(item["lien"], wait_until="networkidle", timeout=20000)
             await random_page_delay(page, min_ms=1500, max_ms=3500)
@@ -221,6 +261,8 @@ async def enrich_pv_pdf(page, items):
             log.warning(f"  PDF erreur {item['reference']} : {e}")
             enriched.append(item)
 
+    if skipped:
+        log.info(f"  {skipped} PVs déjà en base skippés (pas de visite page détail)")
     return enriched
 
 
