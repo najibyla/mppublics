@@ -53,7 +53,8 @@ def extract_url_id(url: str) -> str:
     """
     if not url:
         return ""
-    m = re.search(r'[?&]id=(\d+)', url)
+    # Le portail utilise refConsultation= comme identifiant unique (pas id=)
+    m = re.search(r'[?&]refConsultation=(\d+)', url)
     return m.group(1) if m else ""
 
 
