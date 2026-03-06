@@ -125,6 +125,7 @@ def init_db():
             tender_id            INTEGER NOT NULL,  -- FK vers tenders.id
             reference            TEXT,              -- copie de la référence (pour indexation rapide)
             pdf_url              TEXT,              -- URL du PV PDF
+            pdf_path             TEXT,              -- Chemin local du PDF téléchargé
             procedure_type       TEXT,              -- Type de procédure (Concours Arch, Phase 1, Phase 2, etc.)
             date_publication     TEXT,              -- Date de publication du PV
             hash_pdf             TEXT,              -- Hash du PDF (déduplication)
@@ -233,6 +234,7 @@ def migrate_db():
                 tender_id            INTEGER NOT NULL,
                 reference            TEXT,
                 pdf_url              TEXT,
+                pdf_path             TEXT,
                 procedure_type       TEXT,
                 date_publication     TEXT,
                 hash_pdf             TEXT,
@@ -247,6 +249,14 @@ def migrate_db():
         print("[DB] Table pvs créée")
     except Exception as e:
         print(f"[DB] Table pvs (non bloquant) : {e}")
+
+    # ── Ajouter pdf_path si absent (migration) ────────────────────────────────
+    try:
+        c.execute("ALTER TABLE pvs ADD COLUMN pdf_path TEXT")
+        conn.commit()
+        print("[DB] Migration pvs : colonne pdf_path ajoutée")
+    except Exception:
+        pass  # Colonne déjà présente
 
     # ── Remplir url_id depuis lien_detail pour les enregistrements existants ──
     rows_without_url_id = c.execute(
