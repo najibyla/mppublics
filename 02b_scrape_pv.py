@@ -96,12 +96,30 @@ async def parse_pv_rows(page, procedure_name):
     """Extrait les PVs de la page courante.
     
     Utilise text_content() au lieu de inner_text() pour lire les panneaux collapsés.
+    Fix context destroyed : même protection que parse_rows() du crawler.
     """
     results = []
     try:
-        rows = await page.locator("table.table-results tbody tr").all()
+        # Attendre que la page soit stable avant locator.all()
+        await page.wait_for_load_state("networkidle", timeout=20000)
+
+        table_sel = "table.table-results tbody tr"
+        try:
+            await page.wait_for_selector(table_sel, timeout=15000)
+        except Exception:
+            table_sel = "table tr:has(td)"
+            try:
+                await page.wait_for_selector(table_sel, timeout=10000)
+            except Exception:
+                log.warning(f"Tableau PV non trouvé — {procedure_name}")
+                return results
+
+        await asyncio.sleep(1.5)
+
+        rows = await page.locator(table_sel).all()
         if not rows:
-            rows = await page.locator("table tr:has(td)").all()
+            log.warning(f"0 PVs pour {procedure_name}")
+            return results
 
         log.info(f"  {len(rows)} PVs trouvés pour {procedure_name}")
 
@@ -291,6 +309,7 @@ def save_pvs(items):
                     (uid or None, ref, lien, objet)
                 )
                 tender_id = c.lastrowid
+                conn.commit()  # Commit immédiat pour éviter le lock dans save_pv()
                 created_tenders += 1
                 log.info(f"[{ref}] Tender orphelin créé (id={tender_id})")
             except Exception as e:
@@ -298,6 +317,7 @@ def save_pvs(items):
                 continue
 
         # Insérer le PV dans la table pvs
+        conn.commit()  # Libérer tout verrou avant d'appeler save_pv()
         if tender_id:
             if save_pv(tender_id, ref, pdf_url, procedure_type, ""):
                 inserted_pvs += 1
