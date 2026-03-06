@@ -420,6 +420,12 @@ async def run():
             while True:
                 try:
                     log.info(f"--- Page {page_num} ---")
+                    # Attendre que la page soit stable avant page.content()
+                    # (évite "Unable to retrieve content because the page is navigating")
+                    try:
+                        await page.wait_for_load_state("networkidle", timeout=20000)
+                    except Exception:
+                        pass
                     page_content = await page.content()
                     page_hash = compute_hash(page_content)
                     rows = await parse_rows(page)
